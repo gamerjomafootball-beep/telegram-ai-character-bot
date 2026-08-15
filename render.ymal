@@ -1,0 +1,26 @@
+services:
+  - type: worker
+    name: telegram-ai-character-bot
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: OWNER_ID
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: IMAGE_API_URL
+        sync: false
+      - key: IMAGE_API_KEY
+        sync: false
+      - key: VIDEO_API_URL
+        sync: false
+      - key: VIDEO_API_KEY
+        sync: false
+      - key: DB_PATH
+        value: bot.db
