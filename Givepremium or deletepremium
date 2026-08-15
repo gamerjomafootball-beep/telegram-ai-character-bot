@@ -1,0 +1,80 @@
+@dp.message(Command("givepremium"))
+async def give_premium(message: Message):
+    if message.from_user.id != OWNER_ID:
+        await message.answer("❌ Bu buyruq faqat bot egasi uchun.")
+        return
+
+    parts = message.text.split()
+
+    if len(parts) != 3:
+        await message.answer(
+            "❌ Foydalanish:\n"
+            "/givepremium USER_ID DAYS\n\n"
+            "Misol:\n"
+            "/givepremium 123456789 7"
+        )
+        return
+
+    try:
+        user_id = int(parts[1])
+        days = int(parts[2])
+    except ValueError:
+        await message.answer("❌ USER_ID va DAYS raqam bo‘lishi kerak.")
+        return
+
+    if days <= 0:
+        await message.answer("❌ Kunlar 0 dan katta bo‘lishi kerak.")
+        return
+
+    until = add_premium(user_id, days)
+
+    await message.answer(
+        f"✅ Premium berildi!\n\n"
+        f"👤 User ID: {user_id}\n"
+        f"⏳ Muddat: {days} kun\n"
+        f"📅 Tugashi: {until.strftime('%Y-%m-%d %H:%M UTC')}"
+    )
+
+
+@dp.message(Command("deletepremium"))
+async def delete_premium(message: Message):
+    if message.from_user.id != OWNER_ID:
+        await message.answer("❌ Bu buyruq faqat bot egasi uchun.")
+        return
+
+    parts = message.text.split()
+
+    if len(parts) != 2:
+        await message.answer(
+            "❌ Foydalanish:\n"
+            "/deletepremium USER_ID\n\n"
+            "Misol:\n"
+            "/deletepremium 123456789"
+        )
+        return
+
+    try:
+        user_id = int(parts[1])
+    except ValueError:
+        await message.answer("❌ USER_ID raqam bo‘lishi kerak.")
+        return
+
+    conn = db()
+
+    conn.execute(
+        """
+        INSERT INTO users(user_id, premium_until)
+        VALUES(?, NULL)
+        ON CONFLICT(user_id)
+        DO UPDATE SET premium_until=NULL
+        """,
+        (user_id,)
+    )
+
+    conn.commit()
+    conn.close()
+
+    await message.answer(
+        f"🗑 Premium o‘chirildi!\n\n"
+        f"👤 User ID: {user_id}"
+    )
