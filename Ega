@@ -1,0 +1,131 @@
+@dp.message(Command("givepremium"))
+async def give_premium(message: Message):
+    if message.from_user.id != OWNER_ID:
+        await message.answer("❌ Bu buyruq faqat bot egasi uchun.")
+        return
+
+    parts = message.text.split()
+
+    if len(parts) != 3:
+        await message.answer(
+            "Foydalanish:\n"
+            "/givepremium USER_ID DAYS\n\n"
+            "Misol:\n"
+            "/givepremium 123456789 7"
+        )
+        return
+
+    try:
+        user_id = int(parts[1])
+        days = int(parts[2])
+    except ValueError:
+        await message.answer("❌ USER_ID va DAYS raqam bo‘lishi kerak.")
+        return
+
+    if days <= 0 or days > 3650:
+        await message.answer("❌ Kunlar 1 dan 3650 gacha bo‘lishi kerak.")
+        return
+
+    until = add_premium(user_id, days)
+
+    await message.answer(
+        f"✅ Premium berildi!\n\n"
+        f"👤 User ID: {user_id}\n"
+        f"⏳ Muddat: {days} kun\n"
+        f"📅 Tugash vaqti: {until.strftime('%Y-%m-%d %H:%M UTC')}"
+    )
+
+
+@dp.message(Command("removepremium"))
+async def remove_premium(message: Message):
+    if message.from_user.id != OWNER_ID:
+        await message.answer("❌ Bu buyruq faqat bot egasi uchun.")
+        return
+
+    parts = message.text.split()
+
+    if len(parts) != 2:
+        await message.answer(
+            "Foydalanish:\n"
+            "/removepremium USER_ID"
+        )
+        return
+
+    try:
+        user_id = int(parts[1])
+    except ValueError:
+        await message.answer("❌ USER_ID raqam bo‘lishi kerak.")
+        return
+
+    conn = db()
+
+    conn.execute(
+        """
+        INSERT INTO users(user_id, premium_until)
+        VALUES(?, NULL)
+        ON CONFLICT(user_id)
+        DO UPDATE SET premium_until=NULL
+        """,
+        (user_id,)
+    )
+
+    conn.commit()
+    conn.close()
+
+    await message.answer(
+        f"❌ Premium olib tashlandi.\n"
+        f"👤 User ID: {user_id}"
+    )
+
+
+@dp.message(Command("premiumstatus"))
+async def premium_status(message: Message):
+    if message.from_user.id != OWNER_ID:
+        await message.answer("❌ Bu buyruq faqat bot egasi uchun.")
+        return
+
+    parts = message.text.split()
+
+    if len(parts) != 2:
+        await message.answer(
+            "Foydalanish:\n"
+            "/premiumstatus USER_ID"
+        )
+        return
+
+    try:
+        user_id = int(parts[1])
+    except ValueError:
+        await message.answer("❌ USER_ID raqam bo‘lishi kerak.")
+        return
+
+    conn = db()
+    row = conn.execute(
+        "SELECT premium_until FROM users WHERE user_id=?",
+        (user_id,)
+    ).fetchone()
+    conn.close()
+
+    if not row or not row["premium_until"]:
+        await message.answer(
+            f"👤 User: {user_id}\n"
+            f"💎 Premium: Yo‘q"
+        )
+        return
+
+    try:
+        until = datetime.fromisoformat(row["premium_until"])
+    except Exception:
+        await message.answer("Premium ma'lumotida xatolik.")
+        return
+
+    if until <= now():
+        status = "❌ Muddati tugagan"
+    else:
+        status = "✅ Faol"
+
+    await message.answer(
+        f"👤 User: {user_id}\n"
+        f"💎 Premium: {status}\n"
+        f"📅 Tugash: {until.strftime('%Y-%m-%d %H:%M UTC')}"
+    )
